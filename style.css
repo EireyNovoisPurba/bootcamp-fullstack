@@ -1,0 +1,34 @@
+/* Ini memilih seluruh badan website */
+body {
+  font-family: Arial, sans-serif;
+  background-color: #f4f4f4; /* Abu-abu muda */
+  margin: 40px;
+  text-align: center;
+}
+
+/* Ini memilih hanya elemen h1 */
+h1 {
+  color: #2c3e50; /* Biru gelap */
+  text-transform: uppercase; /* Huruf besar semua */
+}
+
+/* Ini memilih semua paragraf */
+p {
+  color: #666;
+  font-size: 18px;
+}
+
+/* Kelas khusus untuk mode gelap */
+body.dark-mode {
+  background-color: black;
+  color: white;
+}
+
+/* Jika body punya kelas .dark-mode, ubah warna h1 dan p di dalamnya */
+body.dark-mode h1 {
+  color: #ffffff; /* Putih */
+}
+
+body.dark-mode p {
+  color: #dddddd; /* Abu-abu terang */
+}
