@@ -14,7 +14,7 @@ function App() {
   // FUNGSI LOGIN
   const handleLogin = async (e) => {
     e.preventDefault();
-    const res = await fetch("http://localhost:3000/api/login", {
+    const res = await fetch("https://bootcamp-fullstack-teal.vercel.app/api/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password }),
@@ -31,7 +31,7 @@ function App() {
 
   // FUNGSI AMBIL DATA (Bisa tanpa token, krn Public)
   const ambilData = () => {
-    fetch("http://localhost:3000/api/profile")
+    fetch("https://bootcamp-fullstack-teal.vercel.app/api/login")
       .then((res) => res.json())
       .then((data) => {
         setDataBackend(data);
@@ -49,7 +49,7 @@ function App() {
   const handleUpdatePesan = async () => {
     if (!token) return alert("Login dulu bos!");
 
-    await fetch("http://localhost:3000/api/profile", {
+    await fetch("https://bootcamp-fullstack-teal.vercel.app/api/login", {
       method: "PUT",
       // MENYISIPKAN TOKEN DISINI:
       headers: {
@@ -66,7 +66,7 @@ function App() {
     e.preventDefault();
     if (!token) return alert("Login dulu bos!");
 
-    await fetch("http://localhost:3000/api/hobbies", {
+    await fetch("https://bootcamp-fullstack-teal.vercel.app/api/login", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -82,7 +82,7 @@ function App() {
     if (!token) return alert("Login dulu bos!");
     if (!confirm("Hapus?")) return;
 
-    await fetch(`http://localhost:3000/api/hobbies/${id}`, {
+    await fetch(`https://bootcamp-fullstack-teal.vercel.app/api/login/${id}`, {
       method: "DELETE",
       headers: {
         Authorization: `Bearer ${token}`,
