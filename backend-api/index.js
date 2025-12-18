@@ -3,29 +3,23 @@ const cors = require("cors");
 const { Pool } = require("pg");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
-require("dotenv").config(); // <--- BARU: Supaya bisa baca variabel server
+require("dotenv").config();
 
 const app = express();
-// <--- BARU: Port ikut aturan Render, kalau di laptop pakai 3000
 const PORT = process.env.PORT || 3000;
-// <--- BARU: Kunci rahasia diambil dari setting server (nanti kita set di Render)
 const JWT_SECRET = process.env.JWT_SECRET || "kunci_rahasia_negara_api";
 
 app.use(cors());
 app.use(express.json());
 
-// === KONFIGURASI DATABASE (YANG BIKIN BINGUNG TADI) ===
-// Logikanya: "Cek dulu apakah ada alamat DATABASE_URL dari Neon?"
-// "Kalau gak ada (artinya lagi di laptop), pakai database lokal."
 const connectionString = process.env.DATABASE_URL || "postgres://postgres:root@localhost:5432/bootcamp_db";
 
 const pool = new Pool({
   connectionString: connectionString,
-  // <--- BARU: SSL Wajib buat Neon/Render, tapi dimatikan kalau di laptop
   ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false,
 });
 
-// === MIDDLEWARE AUTH ===
+// MIDDLEWARE AUTH
 function authenticateToken(req, res, next) {
   const authHeader = req.headers["authorization"];
   const token = authHeader && authHeader.split(" ")[1];
@@ -40,7 +34,22 @@ function authenticateToken(req, res, next) {
 
 // === PUBLIC ROUTES ===
 
-// Login
+// 1. REGISTER (YANG HILANG TADI)
+app.post("/api/register", async (req, res) => {
+  try {
+    const { nama, email, password, role } = req.body;
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    const result = await pool.query("INSERT INTO users (nama, email, password, role, pesan) VALUES ($1, $2, $3, $4, $5) RETURNING *", [nama, email, hashedPassword, role, "Halo, saya user baru!"]);
+    res.json({ message: "Registrasi Berhasil!", user: result.rows[0] });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Gagal Register");
+  }
+});
+
+// 2. LOGIN
 app.post("/api/login", async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -58,10 +67,9 @@ app.post("/api/login", async (req, res) => {
   }
 });
 
-// Get Profile
+// 3. GET PROFILE
 app.get("/api/profile", async (req, res) => {
   try {
-    // Kita pakai LIMIT 1 dulu karena ini portfolio personal
     const result = await pool.query("SELECT * FROM users LIMIT 1");
     if (result.rows.length === 0) return res.status(404).json({ message: "No User" });
 
@@ -70,14 +78,13 @@ app.get("/api/profile", async (req, res) => {
 
     res.json({ nama: user.nama, role: user.role, pesan: user.pesan, hobi: hobiRes.rows });
   } catch (err) {
-    console.error(err); // Biar kelihatan errornya di log server
+    console.error(err);
     res.status(500).send("Server Error");
   }
 });
 
-// === PRIVATE ROUTES (Perlu Token) ===
+// === PRIVATE ROUTES ===
 
-// Update Pesan
 app.put("/api/profile", authenticateToken, async (req, res) => {
   try {
     const { pesanBaru } = req.body;
@@ -88,7 +95,6 @@ app.put("/api/profile", authenticateToken, async (req, res) => {
   }
 });
 
-// Tambah Hobi
 app.post("/api/hobbies", authenticateToken, async (req, res) => {
   try {
     const { hobiBaru } = req.body;
@@ -99,7 +105,6 @@ app.post("/api/hobbies", authenticateToken, async (req, res) => {
   }
 });
 
-// Hapus Hobi
 app.delete("/api/hobbies/:id", authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
@@ -110,11 +115,7 @@ app.delete("/api/hobbies/:id", authenticateToken, async (req, res) => {
   }
 });
 
-// Export app supaya Vercel bisa membacanya
 module.exports = app;
-
-// Kode ini hanya jalan kalau kita run di laptop (node index.js)
-// Kalau di Vercel, kode ini diabaikan (karena Vercel yang handle servernya)
 if (require.main === module) {
   app.listen(PORT, () => {
     console.log(`🚀 Server berjalan di Port ${PORT}`);
