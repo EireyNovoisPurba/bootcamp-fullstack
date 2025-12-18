@@ -1,14 +1,14 @@
 const tombol = document.getElementById("tombolAjaib");
-const body = document.body;
+const html = document.documentElement; // Ini menangkap tag <html>
 
 tombol.addEventListener("click", function () {
-  // Cara Pro: Toggle class (Kalau ada dihapus, kalau gak ada ditambah)
-  body.classList.toggle("dark-mode");
+  // Toggle class 'dark' di tag <html>
+  html.classList.toggle("dark");
 
-  // Ubah teks tombol
-  if (body.classList.contains("dark-mode")) {
+  // Ubah tulisan tombol
+  if (html.classList.contains("dark")) {
     tombol.textContent = "Kembali ke Terang";
   } else {
-    tombol.textContent = "Klik Saya! (Mode Gelap)";
+    tombol.textContent = "Mode Gelap";
   }
 });
