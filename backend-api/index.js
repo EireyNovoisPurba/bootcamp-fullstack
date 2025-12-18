@@ -110,6 +110,13 @@ app.delete("/api/hobbies/:id", authenticateToken, async (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`🚀 Server berjalan di Port ${PORT}`);
-});
+// Export app supaya Vercel bisa membacanya
+module.exports = app;
+
+// Kode ini hanya jalan kalau kita run di laptop (node index.js)
+// Kalau di Vercel, kode ini diabaikan (karena Vercel yang handle servernya)
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`🚀 Server berjalan di Port ${PORT}`);
+  });
+}
