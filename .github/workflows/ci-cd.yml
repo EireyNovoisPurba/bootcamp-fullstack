@@ -1,0 +1,55 @@
+name: Robot Satpam CI/CD
+
+# Kapan robot ini bekerja?
+on:
+  push:
+    branches: ["main"] # Tiap kali ada push ke main
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  # Tugas 1: Cek Kesehatan Backend
+  cek-backend:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Ambil Kodingan
+        uses: actions/checkout@v3
+
+      - name: Siapkan Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      - name: Install Backend
+        run: |
+          cd backend-api
+          npm install
+
+      - name: Tes Backend (Pura-pura)
+        run: |
+          cd backend-api
+          npm test
+
+  # Tugas 2: Cek Kesehatan Frontend
+  cek-frontend:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Ambil Kodingan
+        uses: actions/checkout@v3
+
+      - name: Siapkan Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      - name: Install Frontend
+        run: |
+          cd react-portfolio
+          npm install
+
+      - name: Coba Build Frontend (Cek Error)
+        run: |
+          cd react-portfolio
+          npm run build
