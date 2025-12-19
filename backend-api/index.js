@@ -3,23 +3,28 @@ const cors = require("cors");
 const { Pool } = require("pg");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const { Redis } = require("@upstash/redis"); // Import Redis
 require("dotenv").config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || "kunci_rahasia_negara_api";
 
+// Setup Client Redis
+const redis = new Redis({
+  url: process.env.UPSTASH_REDIS_REST_URL,
+  token: process.env.UPSTASH_REDIS_REST_TOKEN,
+});
+
 app.use(cors());
 app.use(express.json());
 
-const connectionString = process.env.DATABASE_URL || "postgres://postgres:root@localhost:5432/bootcamp_db";
-
 const pool = new Pool({
-  connectionString: connectionString,
+  connectionString: process.env.DATABASE_URL || "postgres://postgres:root@localhost:5432/bootcamp_db",
   ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false,
 });
 
-// MIDDLEWARE AUTH
+// ... (Middleware authenticateToken TETAP SAMA, tidak perlu diubah) ...
 function authenticateToken(req, res, next) {
   const authHeader = req.headers["authorization"];
   const token = authHeader && authHeader.split(" ")[1];
@@ -32,10 +37,9 @@ function authenticateToken(req, res, next) {
   });
 }
 
-// === PUBLIC ROUTES ===
-
-// 1. REGISTER (YANG HILANG TADI)
+// ... (Route Login & Register TETAP SAMA) ...
 app.post("/api/register", async (req, res) => {
+  // ... (Kode Register sama persis, copy dari sebelumnya)
   try {
     const { nama, email, password, role } = req.body;
     const salt = await bcrypt.genSalt(10);
@@ -49,8 +53,8 @@ app.post("/api/register", async (req, res) => {
   }
 });
 
-// 2. LOGIN
 app.post("/api/login", async (req, res) => {
+  // ... (Kode Login sama persis)
   try {
     const { email, password } = req.body;
     const result = await pool.query("SELECT * FROM users WHERE email = $1", [email]);
@@ -67,28 +71,57 @@ app.post("/api/login", async (req, res) => {
   }
 });
 
-// 3. GET PROFILE
+// === BAGIAN INI YANG KITA UBAH JADI CANGGIH (REDIS) ===
+
 app.get("/api/profile", async (req, res) => {
   try {
+    // 1. Cek dulu: Apakah data ada di Redis (Cache)?
+    const cachedProfile = await redis.get("profile_data");
+
+    if (cachedProfile) {
+      // KALO ADA: Kirim langsung dari Redis (Ngebut!)
+      console.log("⚡ HIT REDIS (Data dari Cache)");
+      return res.json(cachedProfile);
+    }
+
+    // 2. KALO GAK ADA: Terpaksa ambil dari Database (Lambat)
+    console.log("🐢 MISS REDIS (Ambil dari DB)");
     const result = await pool.query("SELECT * FROM users LIMIT 1");
     if (result.rows.length === 0) return res.status(404).json({ message: "No User" });
 
     const user = result.rows[0];
     const hobiRes = await pool.query("SELECT * FROM hobbies WHERE user_id = $1", [user.id]);
 
-    res.json({ nama: user.nama, role: user.role, pesan: user.pesan, hobi: hobiRes.rows });
+    const finalData = {
+      nama: user.nama,
+      role: user.role,
+      pesan: user.pesan,
+      hobi: hobiRes.rows,
+    };
+
+    // 3. Simpan hasilnya ke Redis biar request berikutnya ngebut
+    // 'ex: 60' artinya simpan selama 60 detik saja (biar update gak kelamaan)
+    await redis.set("profile_data", finalData, { ex: 60 });
+
+    res.json(finalData);
   } catch (err) {
     console.error(err);
     res.status(500).send("Server Error");
   }
 });
 
-// === PRIVATE ROUTES ===
+// ... (Route PUT Update & POST Hobbies perlu sedikit update) ...
+// Kenapa? Karena kalau data diupdate, Cache lama harus DIHAPUS (Invalidate)
+// Biar user gak lihat data jadul.
 
 app.put("/api/profile", authenticateToken, async (req, res) => {
   try {
     const { pesanBaru } = req.body;
     await pool.query("UPDATE users SET pesan = $1 WHERE id = $2", [pesanBaru, req.user.id]);
+
+    // HAPUS CACHE LAMA (Biar data baru muncul)
+    await redis.del("profile_data");
+
     res.json({ message: "Sukses update data!" });
   } catch (err) {
     res.status(500).send("Gagal Update");
@@ -99,6 +132,9 @@ app.post("/api/hobbies", authenticateToken, async (req, res) => {
   try {
     const { hobiBaru } = req.body;
     const result = await pool.query("INSERT INTO hobbies (user_id, hobi) VALUES ($1, $2) RETURNING *", [req.user.id, hobiBaru]);
+
+    await redis.del("profile_data"); // Hapus Cache
+
     res.json(result.rows[0]);
   } catch (err) {
     res.status(500).send("Gagal Tambah Hobi");
@@ -109,6 +145,9 @@ app.delete("/api/hobbies/:id", authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     await pool.query("DELETE FROM hobbies WHERE id = $1", [id]);
+
+    await redis.del("profile_data"); // Hapus Cache
+
     res.json({ message: "Hobi dihapus!" });
   } catch (err) {
     res.status(500).send("Gagal Hapus");
@@ -116,6 +155,7 @@ app.delete("/api/hobbies/:id", authenticateToken, async (req, res) => {
 });
 
 module.exports = app;
+// ... (Bagian listen tetap sama)
 if (require.main === module) {
   app.listen(PORT, () => {
     console.log(`🚀 Server berjalan di Port ${PORT}`);
